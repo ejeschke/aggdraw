@@ -93,6 +93,9 @@
 #include "agg_scanline_p.h"
 #include "platform/agg_platform_support.h" // agg::pix_format_*
 
+#include <iostream>
+using namespace std;
+
 /* -------------------------------------------------------------------- */
 /* AGG Drawing Surface */
 
@@ -1049,6 +1052,73 @@ draw_ellipse(DrawObject* self, PyObject* args)
 }
 
 static PyObject*
+draw_ellipses(DrawObject* self, PyObject* args)
+{
+    double x0, y0, x1, y1;
+    int i, len;
+    PyObject* obj = NULL;
+    PyObject* seq = NULL;
+    PyObject* item = NULL;
+    PyObject* tup = NULL;
+    PyObject* num = NULL;
+    PyObject* brush = NULL;
+    PyObject* pen = NULL;
+    if (!PyArg_ParseTuple(args, "O|OO:ellipses",
+                          &obj, &brush, &pen))
+        return NULL;
+
+    agg::path_storage path;
+    agg::ellipse ellipse;
+/*
+    flags = NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_ALIGNED;
+    farr = (PyArrayObject*)PyArray_FromAny(obj,
+                                           PyArray_DescrFromType(NPY_FLOAT64),
+                                           0, 0, flags);
+
+    len = farr->dimensions[1];
+    for (i = 0; i < len; i++) {
+        x0 = *((double *)(farr->data + i*farr->strides[0] + 0*farr->strides[1]));
+        y0 = *((double *)(farr->data + i*farr->strides[0] + 1*farr->strides[1]));
+        x1 = *((double *)(farr->data + i*farr->strides[0] + 2*farr->strides[1]));
+        y1 = *((double *)(farr->data + i*farr->strides[0] + 3*farr->strides[1]));
+
+        ellipse.init((x1+x0)/2, (y1+y0)/2, (x1-x0)/2, (y1-y0)/2, 8);
+        ellipse.approximation_scale(1);
+        path.add_path(ellipse);
+        self->draw->draw(path, pen, brush);
+
+    }
+*/
+    /* This is the python list way */
+    seq = PySequence_Fast(obj, "expected a sequence");
+    len = PySequence_Size(obj);
+    for (i = 0; i < len; i++) {
+        item = PySequence_Fast_GET_ITEM(seq, i);
+        tup = PySequence_Fast(item, "expected a sequence: (x0, y0, x1, y1)");
+        num = PySequence_Fast_GET_ITEM(tup, 0);
+        x0 = PyFloat_AsDouble(num);
+        num = PySequence_Fast_GET_ITEM(tup, 1);
+        y0 = PyFloat_AsDouble(num);
+        num = PySequence_Fast_GET_ITEM(tup, 2);
+        x1 = PyFloat_AsDouble(num);
+        num = PySequence_Fast_GET_ITEM(tup, 3);
+        y1 = PyFloat_AsDouble(num);
+        Py_DECREF(tup);
+
+        ellipse.init((x1+x0)/2, (y1+y0)/2, (x1-x0)/2, (y1-y0)/2, 8);
+        ellipse.approximation_scale(1);
+        path.remove_all();
+        path.add_path(ellipse);
+        self->draw->draw(path, pen, brush);
+
+    }
+    Py_DECREF(seq);
+
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+static PyObject*
 draw_line(DrawObject* self, PyObject* args)
 {
     PyObject* xyIn;
@@ -1453,6 +1523,7 @@ static PyMethodDef draw_methods[] = {
     {"arc", (PyCFunction) draw_arc, METH_VARARGS},
     {"chord", (PyCFunction) draw_chord, METH_VARARGS},
     {"ellipse", (PyCFunction) draw_ellipse, METH_VARARGS},
+    {"ellipses", (PyCFunction) draw_ellipses, METH_VARARGS},
     {"pieslice", (PyCFunction) draw_pieslice, METH_VARARGS},
 
     {"settransform", (PyCFunction) draw_settransform, METH_VARARGS},
